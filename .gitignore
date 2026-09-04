@@ -1,0 +1,35 @@
+# Dart and Flutter outputs
+.dart_tool/
+.packages
+.pub/
+build/
+coverage/
+pubspec.lock
+
+# Android and Gradle outputs
+.gradle/
+android/.gradle/
+android/build/
+android/local.properties
+local.properties
+*.iml
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Credentials, signing material, and environment files
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+key.properties
+service-account*.json
+google-services.json
+GoogleService-Info.plist
