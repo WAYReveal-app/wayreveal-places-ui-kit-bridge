@@ -37,6 +37,7 @@ internal class PlaceDetailsUiKitEmbeddedView(
 
     private val listener = object : PlaceLoadListener {
         override fun onSuccess(place: Place) {
+            if (disposed) return
             channel.invokeMethod(
                 "onPlaceDetailsEvent",
                 mapOf("type" to "ready", "placeId" to placeId),
@@ -44,6 +45,7 @@ internal class PlaceDetailsUiKitEmbeddedView(
         }
 
         override fun onFailure(e: Exception) {
+            if (disposed) return
             channel.invokeMethod(
                 "onPlaceDetailsEvent",
                 mapOf("type" to "error"),
@@ -108,11 +110,11 @@ internal class PlaceDetailsUiKitEmbeddedView(
     }
 
     internal fun onHostDestroyed() {
-        activeFragment?.setPlaceLoadListener(null)
+        disposed = true
+        activeFragment?.setPlaceLoadListener(DetachedPlaceLoadListener)
         activeFragment = null
         pendingAttach = false
         pendingRemoval = false
-        disposed = true
     }
 
     internal fun ownershipTag(): String = fragmentTag
@@ -169,7 +171,7 @@ internal class PlaceDetailsUiKitEmbeddedView(
         }
         val details = fragment as? PlaceDetailsCompactFragment
         if (details != null && activeFragment === details) {
-            details.setPlaceLoadListener(null)
+            details.setPlaceLoadListener(DetachedPlaceLoadListener)
             activeFragment = null
         }
         if (details == null || !details.isAdded) {
@@ -195,6 +197,12 @@ internal class PlaceDetailsUiKitEmbeddedView(
         return generateSequence<Throwable>(error) { it.cause }
             .any { it.message?.contains("Places must be initialized first") == true }
     }
+}
+
+private object DetachedPlaceLoadListener : PlaceLoadListener {
+    override fun onSuccess(place: Place) = Unit
+
+    override fun onFailure(e: Exception) = Unit
 }
 
 internal object PlaceDetailsUiKitFragmentOwnerRegistry {

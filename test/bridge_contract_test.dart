@@ -177,8 +177,18 @@ void main() {
       'wayreveal_places_ui_kit_bridge/PlaceDetailsUiKitEmbeddedView.kt',
     ).readAsStringSync();
     expect(details, contains('PlaceDetailsCompactFragment'));
-    expect(details, contains('loadWithPlaceId(placeId)'));
+    expect(details, contains('val selectedPlaceId = placeId ?: return'));
+    expect(details, contains('loadWithPlaceId(selectedPlaceId)'));
     expect(details, contains('"onPlaceDetailsEvent"'));
+    expect(
+      'if (disposed) return'.allMatches(details).length,
+      greaterThanOrEqualTo(2),
+    );
+    expect(
+      details,
+      contains('setPlaceLoadListener(DetachedPlaceLoadListener)'),
+    );
+    expect(details, isNot(contains('setPlaceLoadListener(null)')));
     expect(details, isNot(contains('Place.Field.DISPLAY_NAME')));
     expect(details, isNot(contains('Place.Field.RATING')));
     expect(details, isNot(contains('place.name')));
