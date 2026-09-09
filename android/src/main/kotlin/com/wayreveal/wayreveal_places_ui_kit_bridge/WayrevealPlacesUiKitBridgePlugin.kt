@@ -35,6 +35,10 @@ class WayrevealPlacesUiKitBridgePlugin : FlutterPlugin, MethodChannel.MethodCall
             EMBEDDED_VIEW_TYPE,
             PlacesUiKitEmbeddedViewFactory({ activity }, channel),
         )
+        binding.platformViewRegistry.registerViewFactory(
+            PLACE_DETAILS_VIEW_TYPE,
+            PlaceDetailsUiKitEmbeddedViewFactory({ activity }, channel),
+        )
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -99,5 +103,6 @@ class WayrevealPlacesUiKitBridgePlugin : FlutterPlugin, MethodChannel.MethodCall
     companion object {
         const val METHOD_CHANNEL = "wayreveal_places_ui_kit_bridge/methods"
         const val EMBEDDED_VIEW_TYPE = "wayreveal_places_ui_kit_bridge/place_search"
+        const val PLACE_DETAILS_VIEW_TYPE = "wayreveal_places_ui_kit_bridge/place_details"
     }
 }

@@ -101,6 +101,8 @@ class WayrevealPlacesUiKitBridge {
       'wayreveal_places_ui_kit_bridge/methods';
   static const String embeddedViewType =
       'wayreveal_places_ui_kit_bridge/place_search';
+  static const String placeDetailsViewType =
+      'wayreveal_places_ui_kit_bridge/place_details';
 
   Future<PlacesUiKitBridgeCapabilities> getCapabilities() =>
       WayrevealPlacesUiKitBridgePlatform.instance.getCapabilities();

@@ -43,6 +43,10 @@ void main() {
       WayrevealPlacesUiKitBridge.embeddedViewType,
       'wayreveal_places_ui_kit_bridge/place_search',
     );
+    expect(
+      WayrevealPlacesUiKitBridge.placeDetailsViewType,
+      'wayreveal_places_ui_kit_bridge/place_details',
+    );
   });
 
   test('callback and error payloads remain primitive', () {
@@ -167,6 +171,18 @@ void main() {
     expect(android, isNot(contains('Place.Field.DISPLAY_NAME')));
     expect(android, isNot(contains('Place.Field.PHONE_NUMBER')));
     expect(android, isNot(contains('Place.Field.RATING')));
+
+    final details = File(
+      'android/src/main/kotlin/com/wayreveal/'
+      'wayreveal_places_ui_kit_bridge/PlaceDetailsUiKitEmbeddedView.kt',
+    ).readAsStringSync();
+    expect(details, contains('PlaceDetailsCompactFragment'));
+    expect(details, contains('loadWithPlaceId(placeId)'));
+    expect(details, contains('"onPlaceDetailsEvent"'));
+    expect(details, isNot(contains('Place.Field.DISPLAY_NAME')));
+    expect(details, isNot(contains('Place.Field.RATING')));
+    expect(details, isNot(contains('place.name')));
+    expect(details, isNot(contains('place.address')));
   });
 
   test('Android embedded fragment ownership is attach-driven and lossless', () {
@@ -193,6 +209,7 @@ void main() {
     expect(activity, contains('prepareForStateSave(this)'));
     expect(activity, contains('prepareForHostPause(this)'));
     expect(activity, contains('onHostPostResume(this)'));
+    expect(activity, contains('PlaceDetailsUiKitFragmentOwnerRegistry'));
   });
 
   test('embedded and modal capability reporting are independent', () {

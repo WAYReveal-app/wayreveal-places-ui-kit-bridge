@@ -17,15 +17,18 @@ open class WayRevealFlutterFragmentActivity : FlutterFragmentActivity() {
     override fun onPostResume() {
         super.onPostResume()
         PlacesUiKitFragmentOwnerRegistry.onHostPostResume(this)
+        PlaceDetailsUiKitFragmentOwnerRegistry.onHostPostResume(this)
     }
 
     override fun onPause() {
         PlacesUiKitFragmentOwnerRegistry.prepareForHostPause(this)
+        PlaceDetailsUiKitFragmentOwnerRegistry.prepareForHostPause(this)
         super.onPause()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         PlacesUiKitFragmentOwnerRegistry.prepareForStateSave(this)
+        PlaceDetailsUiKitFragmentOwnerRegistry.prepareForStateSave(this)
         super.onSaveInstanceState(outState)
     }
 
@@ -35,6 +38,7 @@ open class WayRevealFlutterFragmentActivity : FlutterFragmentActivity() {
 
     override fun onDestroy() {
         PlacesUiKitFragmentOwnerRegistry.onHostDestroyed(this)
+        PlaceDetailsUiKitFragmentOwnerRegistry.onHostDestroyed(this)
         super.onDestroy()
     }
 }
