@@ -103,6 +103,8 @@ class WayrevealPlacesUiKitBridge {
       'wayreveal_places_ui_kit_bridge/place_search';
   static const String placeDetailsViewType =
       'wayreveal_places_ui_kit_bridge/place_details';
+  static const String selectedPlaceMapViewType =
+      'wayreveal_places_ui_kit_bridge/selected_place_map';
 
   Future<PlacesUiKitBridgeCapabilities> getCapabilities() =>
       WayrevealPlacesUiKitBridgePlatform.instance.getCapabilities();

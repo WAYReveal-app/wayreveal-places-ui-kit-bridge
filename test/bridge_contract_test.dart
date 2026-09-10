@@ -47,6 +47,10 @@ void main() {
       WayrevealPlacesUiKitBridge.placeDetailsViewType,
       'wayreveal_places_ui_kit_bridge/place_details',
     );
+    expect(
+      WayrevealPlacesUiKitBridge.selectedPlaceMapViewType,
+      'wayreveal_places_ui_kit_bridge/selected_place_map',
+    );
   });
 
   test('callback and error payloads remain primitive', () {
@@ -193,6 +197,26 @@ void main() {
     expect(details, isNot(contains('Place.Field.RATING')));
     expect(details, isNot(contains('place.name')));
     expect(details, isNot(contains('place.address')));
+
+    final map = File(
+      'android/src/main/kotlin/com/wayreveal/'
+      'wayreveal_places_ui_kit_bridge/SelectedPlaceMapEmbeddedView.kt',
+    ).readAsStringSync();
+    expect(map, contains('MapView(context)'));
+    expect(map, contains('params["latitude"]'));
+    expect(map, contains('params["longitude"]'));
+    expect(map, contains('MarkerOptions().position(selectedLocation)'));
+    expect(map, contains('CameraUpdateFactory.newLatLngZoom'));
+    expect(map, contains('map.uiSettings.isZoomControlsEnabled = true'));
+    expect(map, isNot(contains('Place.Field.')));
+    expect(map, isNot(contains('DISPLAY_NAME')));
+    final gradle = File('android/build.gradle').readAsStringSync();
+    expect(
+      gradle,
+      contains(
+        'implementation("com.google.android.gms:play-services-maps:20.0.0")',
+      ),
+    );
   });
 
   test('Android embedded fragment ownership is attach-driven and lossless', () {
