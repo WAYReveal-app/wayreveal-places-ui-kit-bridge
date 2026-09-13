@@ -12,13 +12,18 @@ internal class PlacesUiKitEmbeddedViewFactory(
     private val channel: MethodChannel,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        val query = (args as? Map<*, *>)?.get("query") as? String
+        val params = args as? Map<*, *> ?: emptyMap<Any, Any>()
+        PlacesLocaleBinding.ensure(context, params["localeCode"])
+        val query = params["query"] as? String
+        val request = DiscoveryRequest.fromArgs(params)
         return PlacesUiKitEmbeddedView(
             context,
             viewId,
             activityProvider(),
             channel,
-            query?.takeIf { it.isNotBlank() } ?: "restaurants in Chania, Crete",
+            query?.takeIf { it.isNotBlank() } ?: "",
+            request,
+            params.containsKey("requestId"),
         )
     }
 }

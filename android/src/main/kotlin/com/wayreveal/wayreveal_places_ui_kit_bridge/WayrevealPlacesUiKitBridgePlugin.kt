@@ -3,9 +3,7 @@ package com.wayreveal.wayreveal_places_ui_kit_bridge
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.fragment.app.FragmentActivity
-import com.google.android.libraries.places.api.Places
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -15,20 +13,12 @@ import io.flutter.plugin.common.MethodChannel
 class WayrevealPlacesUiKitBridgePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
     private lateinit var channel: MethodChannel
     private var activity: Activity? = null
+    private var activityBinding: ActivityPluginBinding? = null
+    private var foregroundLocation: ForegroundDiscoveryLocation? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         val context = binding.applicationContext
-        if (!Places.isInitialized()) {
-            val appInfo = context.packageManager.getApplicationInfo(
-                context.packageName,
-                PackageManager.GET_META_DATA,
-            )
-            val apiKey = appInfo.metaData?.getString("com.wayreveal.PLACES_API_KEY")
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-                ?: error("WAYReveal local PLACES_API_KEY binding is unavailable.")
-            Places.initializeWithNewPlacesApiEnabled(context, apiKey)
-        }
+        PlacesLocaleBinding.ensure(context)
         channel = MethodChannel(binding.binaryMessenger, METHOD_CHANNEL)
         channel.setMethodCallHandler(this)
         binding.platformViewRegistry.registerViewFactory(
@@ -48,6 +38,11 @@ class WayrevealPlacesUiKitBridgePlugin : FlutterPlugin, MethodChannel.MethodCall
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "getCapabilities" -> result.success(capabilities())
+            "requestForegroundDiscoveryLocation" -> {
+                val location = foregroundLocation
+                if (location == null) result.success(mapOf("status" to "unavailable")) else location.request(result)
+            }
+            "cancelForegroundDiscoveryLocation" -> { foregroundLocation?.cancel(); result.success(null) }
             "probeLifecycle" -> result.success(
                 mapOf(
                     "type" to "lifecycle",
@@ -85,22 +80,37 @@ class WayrevealPlacesUiKitBridgePlugin : FlutterPlugin, MethodChannel.MethodCall
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
-        activity = null
+        detachActivity()
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        detachActivity()
         activity = binding.activity
+        activityBinding = binding
+        foregroundLocation = ForegroundDiscoveryLocation(binding.activity).also {
+            binding.addRequestPermissionsResultListener(it)
+        }
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        activity = null
+        detachActivity()
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activity = binding.activity
+        onAttachedToActivity(binding)
     }
 
     override fun onDetachedFromActivity() {
+        detachActivity()
+    }
+
+    private fun detachActivity() {
+        foregroundLocation?.let {
+            activityBinding?.removeRequestPermissionsResultListener(it)
+            it.dispose()
+        }
+        foregroundLocation = null
+        activityBinding = null
         activity = null
     }
 

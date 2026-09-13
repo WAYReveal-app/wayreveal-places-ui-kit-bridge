@@ -40,7 +40,7 @@ internal class PlaceDetailsUiKitEmbeddedView(
             if (disposed) return
             channel.invokeMethod(
                 "onPlaceDetailsEvent",
-                mapOf("type" to "ready", "placeId" to placeId),
+                mapOf("type" to "ready", "placeId" to placeId, "viewId" to viewId),
             )
         }
 
@@ -48,7 +48,7 @@ internal class PlaceDetailsUiKitEmbeddedView(
             if (disposed) return
             channel.invokeMethod(
                 "onPlaceDetailsEvent",
-                mapOf("type" to "error"),
+                mapOf("type" to "error", "placeId" to placeId, "viewId" to viewId),
             )
         }
     }
@@ -150,11 +150,28 @@ internal class PlaceDetailsUiKitEmbeddedView(
             is PlaceDetailsCompactFragment -> existing
             else -> error("Unexpected fragment type ${existing.javaClass.name} for $fragmentTag.")
         }
+        // Owner's latest cost/UX direction: Essentials is the default. Google's
+        // own actions and attribution remain intact; WAYReveal's primary
+        // discovery actions stay in-app. No Advanced/Pro fragment or prefetch.
+        fragment.preferTruncation = false
         fragment.setPlaceLoadListener(listener)
         activeFragment = fragment
         if (!fragment.isAdded) {
             manager.beginTransaction().add(container, fragment, fragmentTag).commitNow()
-            root.post { if (!disposed) fragment.loadWithPlaceId(selectedPlaceId) }
+            root.post {
+                if (disposed || activeFragment !== fragment || !fragment.isAdded) return@post
+                if (!Places.isInitialized()) {
+                    channel.invokeMethod("onPlaceDetailsEvent", mapOf("type" to "error", "reason" to "not_initialized", "placeId" to placeId, "viewId" to viewId))
+                    return@post
+                }
+                val attempt = DevelopmentDetailsBudget.reserve(root.context)
+                if (attempt == null) {
+                    channel.invokeMethod("onPlaceDetailsEvent", mapOf("type" to "error", "reason" to "development_budget_exhausted", "placeId" to placeId, "viewId" to viewId))
+                    return@post
+                }
+                channel.invokeMethod("onPlaceDetailsEvent", mapOf("type" to "development_request", "componentTier" to "essentials", "attempt" to attempt, "placeId" to placeId, "viewId" to viewId))
+                fragment.loadWithPlaceId(selectedPlaceId)
+            }
         }
         pendingAttach = false
     }
@@ -169,7 +186,7 @@ internal class PlaceDetailsUiKitEmbeddedView(
         if (fragment != null && fragment !is PlaceDetailsCompactFragment) {
             error("Unexpected fragment type ${fragment.javaClass.name} for $fragmentTag.")
         }
-        val details = fragment as? PlaceDetailsCompactFragment
+        val details = fragment
         if (details != null && activeFragment === details) {
             details.setPlaceLoadListener(DetachedPlaceLoadListener)
             activeFragment = null

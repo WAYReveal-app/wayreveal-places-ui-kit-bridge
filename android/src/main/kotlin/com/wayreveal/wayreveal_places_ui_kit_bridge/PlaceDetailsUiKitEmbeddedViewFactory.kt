@@ -12,6 +12,7 @@ internal class PlaceDetailsUiKitEmbeddedViewFactory(
     private val channel: MethodChannel,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        PlacesLocaleBinding.ensure(context, (args as? Map<*, *>)?.get("localeCode"))
         val placeId = ((args as? Map<*, *>)?.get("placeId") as? String)
             ?.trim()
             ?.takeIf { it.isNotEmpty() && it.length <= 256 && it.none(Char::isWhitespace) }

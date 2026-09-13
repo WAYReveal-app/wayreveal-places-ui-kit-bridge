@@ -11,6 +11,6 @@ class SelectedPlaceMapEmbeddedViewFactory(
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val creationParams = (args as? Map<*, *>) ?: emptyMap<Any, Any>()
-        return SelectedPlaceMapEmbeddedView(context, creationParams, channel)
+        return SelectedPlaceMapEmbeddedView(context, creationParams, channel, viewId)
     }
 }

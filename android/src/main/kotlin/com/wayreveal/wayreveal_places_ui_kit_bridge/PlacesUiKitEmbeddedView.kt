@@ -10,7 +10,11 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.model.CircularBounds
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.libraries.places.api.net.SearchByTextRequest
+import com.google.android.libraries.places.api.net.SearchNearbyRequest
 import com.google.android.libraries.places.widget.PlaceSearchFragment
 import com.google.android.libraries.places.widget.PlaceSearchFragmentListener
 import io.flutter.plugin.common.MethodChannel
@@ -23,6 +27,8 @@ internal class PlacesUiKitEmbeddedView(
     activity: Activity?,
     private val channel: MethodChannel,
     private val query: String,
+    private val request: DiscoveryRequest? = null,
+    private val explicitRequestContract: Boolean = false,
 ) : PlatformView {
     private val root = FrameLayout(context)
     private val fragmentActivity = activity as? FragmentActivity
@@ -35,14 +41,27 @@ internal class PlacesUiKitEmbeddedView(
     private var pendingRemoval = false
     private var listenerFragment: PlaceSearchFragment? = null
     private var configuredFragment: PlaceSearchFragment? = null
+    private var cancellation = CancellationTokenSource()
+    private val resultRound = DiscoveryResultRound().apply {
+        begin(request?.requestId ?: "legacy:$viewId")
+    }
 
     private val listener = object : PlaceSearchFragmentListener {
         override fun onLoad(places: List<Place>) {
+            if (disposed || cancellation.token.isCancellationRequested) return
+            val identities = places.mapNotNull {
+                DiscoveryIdentity.create(it.id, it.location?.latitude, it.location?.longitude)
+            }
+            val requestId = request?.requestId ?: "legacy:$viewId"
+            if (!resultRound.accept(requestId, identities)) return
             val first = places.firstOrNull()
             channel.invokeMethod(
                 "onPlaceSearchEvent",
                 mapOf(
                     "type" to "load",
+                    "viewId" to viewId,
+                    "requestId" to requestId,
+                    "identities" to resultRound.results.map { it.toPayload() },
                     "count" to places.size,
                     "firstPlaceId" to first?.id,
                     "firstLatitude" to first?.location?.latitude,
@@ -52,16 +71,20 @@ internal class PlacesUiKitEmbeddedView(
         }
 
         override fun onRequestError(e: Exception) {
+            if (disposed || cancellation.token.isCancellationRequested) return
             channel.invokeMethod(
                 "onPlaceSearchEvent",
-                mapOf("type" to "error", "message" to (e.message ?: e.javaClass.simpleName)),
+                mapOf("type" to "error", "viewId" to viewId, "requestId" to (request?.requestId ?: "legacy:$viewId")),
             )
         }
 
         override fun onPlaceSelected(place: Place) {
+            if (disposed || cancellation.token.isCancellationRequested) return
             channel.invokeMethod(
                 "onPlaceSearchEvent",
                 selectedPlacePayload(place.id) + mapOf(
+                    "viewId" to viewId,
+                    "requestId" to (request?.requestId ?: "legacy:$viewId"),
                     "latitude" to place.location?.latitude,
                     "longitude" to place.location?.longitude,
                 ),
@@ -184,14 +207,33 @@ internal class PlacesUiKitEmbeddedView(
 
     private fun configureOnce(fragment: PlaceSearchFragment) {
         if (configuredFragment === fragment) return
-        val request = SearchByTextRequest.builder(
-            query,
-            listOf(Place.Field.ID, Place.Field.LOCATION),
-        )
-            .setMaxResultCount(10)
-            .setRegionCode("GR")
-            .build()
-        fragment.configureFromSearchByTextRequest(request)
+        cancellation = CancellationTokenSource()
+        val fields = listOf(Place.Field.ID, Place.Field.LOCATION)
+        if ((explicitRequestContract && request == null) || (request == null && query.isBlank())) {
+            channel.invokeMethod("onPlaceSearchEvent", mapOf(
+                "type" to "error", "reason" to "invalid_search_area",
+                "viewId" to viewId,
+                "requestId" to (request?.requestId ?: "legacy:$viewId"),
+            ))
+            configuredFragment = fragment
+            return
+        }
+        if (request?.nearby == true) {
+            val bounds = CircularBounds.newInstance(
+                LatLng(request.latitude!!, request.longitude!!), request.radiusMeters,
+            )
+            val builder = SearchNearbyRequest.builder(bounds, fields)
+                .setMaxResultCount(10)
+                .setCancellationToken(cancellation.token)
+            if (request.includedTypes.isNotEmpty()) builder.setIncludedTypes(request.includedTypes)
+            fragment.configureFromSearchNearbyRequest(builder.build())
+        } else {
+            val textRequest = SearchByTextRequest.builder(request?.query ?: query, fields)
+                .setMaxResultCount(10)
+                .setCancellationToken(cancellation.token)
+                .build()
+            fragment.configureFromSearchByTextRequest(textRequest)
+        }
         configuredFragment = fragment
     }
 
@@ -203,6 +245,7 @@ internal class PlacesUiKitEmbeddedView(
     }
 
     private fun removeOwnedFragment(reason: String, reattachWhenReady: Boolean) {
+        cancellation.cancel()
         pendingAttach = reattachWhenReady && !disposed
         val owner = fragmentActivity ?: return
         val manager = owner.supportFragmentManager
@@ -213,7 +256,7 @@ internal class PlacesUiKitEmbeddedView(
         if (fragment != null && fragment !is PlaceSearchFragment) {
             error("Unexpected fragment type ${fragment.javaClass.name} for $fragmentTag.")
         }
-        val placeFragment = fragment as? PlaceSearchFragment
+        val placeFragment = fragment
         if (placeFragment != null && listenerFragment === placeFragment) {
             placeFragment.unregisterListener()
             listenerFragment = null
